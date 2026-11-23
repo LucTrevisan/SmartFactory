@@ -143,6 +143,8 @@ svg.hours .hit:hover{fill:var(--fg);fill-opacity:.06}
   <button role="tab" id="tbRel" aria-selected="false" aria-controls="tabRel">Relatório de conexão</button>
 </nav>
 
+<div class="warnbox" id="netWarn" hidden><b>Não consegui falar com o broker.</b> Redes de escola e de empresa costumam bloquear a porta 8884, que o broker usa. Teste no 4G/5G ou em outra rede; o painel continua tentando sozinho.</div>
+
 <!-- ================= AO VIVO ================= -->
 <div id="tabVivo" role="tabpanel" aria-labelledby="tbVivo">
 <a class="strip" id="strip" href="#relatorio">
@@ -823,6 +825,7 @@ function Mqtt(cfg, h) {
     try { w = new WebSocket(cfg.url, "mqtt"); } catch (e) { ws = {}; h.onState("erro", "URL inválida"); down("URL inválida"); return; }
     ws = w; buf = new Uint8Array(0);
     w.binaryType = "arraybuffer";
+    setTimeout(function () { if (ws === w && !up) down("sem resposta do broker"); }, 15000);
     w.onopen = function () {
       if (ws !== w) return;
       var flags = 0x02 | (cfg.user ? 0x80 : 0) | (cfg.user && cfg.pass ? 0x40 : 0);
@@ -865,7 +868,7 @@ function Mqtt(cfg, h) {
 // ---------------------------------------------------------------------
 var cli = null, tr = SF.Tracker(aoMudar), docKey = "", syncing = false, snap = {}, fila = [], syncTimer = 0;
 var podePublicar = false, histVisto = false, pubTimer = 0, ultPub = 0, ultRemoto = "", saveTimer = 0, rTimer = 0;
-var compartilhar = lsGet("sf_share") !== "0";
+var compartilhar = lsGet("sf_share") !== "0", falhas = 0;
 
 function salvarLocal() {
   clearTimeout(saveTimer); saveTimer = 0;
@@ -942,10 +945,11 @@ function conectar() {
   pill($("pBroker"), "broker: conectando...", "warn");
   cli = Mqtt({ url: url, id: "painel-" + Math.random().toString(16).slice(2, 10), user: $("usr").value, pass: $("pwd").value }, {
     onState: function (s, motivo) {
-      if (s === "conectado") pill($("pBroker"), "broker: conectado", "ok");
+      if (s === "conectado") { pill($("pBroker"), "broker: conectado", "ok"); falhas = 0; $("netWarn").hidden = true; }
       else if (s === "conectando") pill($("pBroker"), "broker: conectando...", "warn");
       else {
         pill($("pBroker"), "broker: " + (motivo || s), "bad");
+        if (++falhas >= 2) $("netWarn").hidden = false;
         if (syncing) { syncing = false; clearTimeout(syncTimer); }
         tr.down(Date.now(), false);
         podePublicar = false;
