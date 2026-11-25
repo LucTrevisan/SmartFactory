@@ -187,7 +187,10 @@ function ajustar(d) {
     ["current_rms_a", "raw_rms_a", "max", "potencia_aparente_estimada_va"].forEach(function (k) { x.corrente[k] = escalar(x.corrente[k]); });
   }
   if (x.vibracao) {
-    CAMPOS_V.forEach(function (k) { x.vibracao[k] = escalarV(x.vibracao[k]); });
+    // Regra de três: 4.40 lido -> 0.45 real (fator = 0.45/4.40), aplicada a TODO campo numérico de vibração
+    Object.keys(x.vibracao).forEach(function (k) {
+      if (typeof x.vibracao[k] === "number" && /mms|vel|rms|accel|peak|_g$/i.test(k)) x.vibracao[k] = escalarV(x.vibracao[k]);
+    });
     x.vibracao.level = nivelVib(x.vibracao.vel_rms_mms);
     x.vibracao.level_max = (typeof x.vibracao.max_vel_rms_mms === "number") ? nivelVib(x.vibracao.max_vel_rms_mms) : x.vibracao.level;
   }
