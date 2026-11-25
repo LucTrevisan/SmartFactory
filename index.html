@@ -1,1 +1,287 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel Kit IoT SENAI</title>
+<style>
+/* Layout: cabeçalho com estado + 3 cartões de medição + comandos + conexão. Uma coluna no celular. */
+:root{
+  --bg:#eef2f6; --card:#ffffff; --line:#d5dde6; --fg:#0e1b2b; --mut:#5a6b7e;
+  --ac:#0a7fb0; --ok:#12805c; --warn:#b36b00; --bad:#c62828; --unk:#8795a5;
+  --ok-bg:#e1f4ec; --warn-bg:#fdf0d9; --bad-bg:#fbe3e3; --unk-bg:#e8edf2;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#07131f; --card:#0d2033; --line:#1c3a56; --fg:#eaf2fa; --mut:#8ea3b8;
+  --ac:#35c3f0; --ok:#3ddc97; --warn:#f5b942; --bad:#ff6b6b; --unk:#6b8097;
+  --ok-bg:#0f3326; --warn-bg:#3a2c0d; --bad-bg:#3d1616; --unk-bg:#15293d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#07131f; --card:#0d2033; --line:#1c3a56; --fg:#eaf2fa; --mut:#8ea3b8;
+  --ac:#35c3f0; --ok:#3ddc97; --warn:#f5b942; --bad:#ff6b6b; --unk:#6b8097;
+  --ok-bg:#0f3326; --warn-bg:#3a2c0d; --bad-bg:#3d1616; --unk-bg:#15293d; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--font);
+  padding-block:0 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1000px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:18px 0 14px;border-bottom:1px solid var(--line)}
+header h1{font-size:20px;margin:0;letter-spacing:-.01em;flex:1 1 220px;min-width:0}
+header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mut);letter-spacing:.02em;margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--unk-bg);color:var(--unk);white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.warn{background:var(--warn-bg);color:var(--warn)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--mut);padding:10px 0;font-variant-numeric:tabular-nums}
+.meta b{color:var(--fg);font-weight:600}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;margin-top:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0;position:relative}
+.card.l-normal{border-top:4px solid var(--ok)}.card.l-warning{border-top:4px solid var(--warn)}
+.card.l-critical{border-top:4px solid var(--bad)}.card.l-unknown{border-top:4px solid var(--unk)}
+.card h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
+.big{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.big small{font-size:15px;font-weight:500;color:var(--mut);margin-left:4px;letter-spacing:0}
+.sub{font-size:13px;color:var(--mut);margin-top:6px;font-variant-numeric:tabular-nums}
+.sub b{color:var(--fg)}
+canvas{width:100%;height:56px;display:block;margin-top:10px}
+.axes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.axes div{background:var(--bg);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--mut)}
+.axes b{display:block;font-size:14px;color:var(--fg);font-variant-numeric:tabular-nums}
+section.panel{margin-top:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,input{font:inherit}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button{color:#04202e}}
+:root[data-theme="dark"] button{color:#04202e}
+button.sec{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+input{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-width:0}
+label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px;flex:1 1 220px;min-width:0}
+.log{font-family:var(--mono);font-size:12px;color:var(--mut);margin-top:10px;word-break:break-all;min-height:1.4em}
+details{margin-top:14px}
+summary{cursor:pointer;color:var(--mut);font-size:13px}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11px;overflow:auto;max-height:260px;margin:8px 0 0}
+.note{font-size:12px;color:var(--mut);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Kit IoT SENAI<small>Bomba IMBIL INI 25-150 · dados lidos do broker MQTT</small></h1>
+  <span class="pill" id="pBroker">broker: desconectado</span>
+  <span class="pill" id="pDev">placa: sem sinal</span>
+</header>
+<div class="meta">
+  <span>Última medição: <b id="mAge">-</b></span>
+  <span>Envio a cada: <b id="mInt">-</b></span>
+  <span>Wi-Fi da placa: <b id="mRssi">-</b></span>
+  <span>Firmware: <b id="mFw">-</b></span>
+</div>
 
+<main>
+  <section class="card l-unknown" id="cI">
+    <h2><span>Corrente · SCT-013</span><span id="qI">-</span></h2>
+    <div class="big"><span id="vI">-</span><small>A RMS</small></div>
+    <div class="sub">Máximo no período: <b id="mI">-</b> A · potência aparente est. <b id="pI">-</b> VA</div>
+    <canvas id="gI"></canvas>
+  </section>
+
+  <section class="card l-unknown" id="cT">
+    <h2><span>Temperatura · MAX6675</span><span id="qT">-</span></h2>
+    <div class="big"><span id="vT">-</span><small>°C</small></div>
+    <div class="sub">Máximo no período: <b id="mT">-</b> °C</div>
+    <canvas id="gT"></canvas>
+  </section>
+
+  <section class="card l-unknown" id="cV">
+    <h2><span>Vibração · MPU6050</span><span id="qV">-</span></h2>
+    <div class="big"><span id="vV">-</span><small>mm/s RMS</small></div>
+    <div class="sub">Máximo no período: <b id="mV">-</b> mm/s · aceleração <b id="aV">-</b> g</div>
+    <div class="axes">
+      <div>X (g RMS)<b id="ax">-</b></div><div>Y (g RMS)<b id="ay">-</b></div><div>Z (g RMS)<b id="az">-</b></div>
+    </div>
+    <canvas id="gV"></canvas>
+  </section>
+</main>
+
+<section class="card panel">
+  <h2><span>Comandos</span></h2>
+  <div class="row">
+    <button id="bNow">Medir agora</button>
+    <button id="bPing" class="sec">Ping</button>
+    <button id="bLim" class="sec">Ver limites</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label style="flex:0 1 150px">Intervalo de envio (s)<input id="iv" type="number" min="1" max="3600" value="30" inputmode="numeric"></label>
+    <button id="bIv" class="sec" style="align-self:flex-end">Aplicar intervalo</button>
+  </div>
+  <div class="log" id="log">Resposta da placa aparece aqui.</div>
+</section>
+
+<section class="card panel">
+  <h2><span>Conexão com o broker</span></h2>
+  <div class="row">
+    <label>URL WebSocket do broker<input id="url" value="wss://broker.hivemq.com:8884/mqtt" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+    <label>Tópico base da placa<input id="base" value="senai/cfp601/imbil-ini25150-01" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label>Usuário (opcional)<input id="usr" autocapitalize="off" autocomplete="off"></label>
+    <label>Senha (opcional)<input id="pwd" type="password" autocomplete="off"></label>
+    <button id="bCon" style="align-self:flex-end">Conectar</button>
+  </div>
+  <p class="note">Esta página usa wss:// (com criptografia) para funcionar em celular. A placa pode continuar em ws://, porque é o mesmo broker. A URL e o tópico base precisam ser os mesmos do firmware.</p>
+  <details><summary>Última mensagem recebida (JSON)</summary><pre id="raw">aguardando...</pre></details>
+</section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var cli = null, base = "", lastTs = 0, intervalS = 30, devStatus = "";
+var hist = { I: [], T: [], V: [] };
+var CAMPOS = ["url", "base", "usr"];
+
+function salvar() { try { CAMPOS.forEach(function (c) { localStorage.setItem("kit_" + c, $(c).value); }); } catch (e) {} }
+function carregar() { try { CAMPOS.forEach(function (c) { var v = localStorage.getItem("kit_" + c); if (v) $(c).value = v; }); } catch (e) {} }
+
+function pill(el, txt, cls) { el.textContent = txt; el.className = "pill" + (cls ? " " + cls : ""); }
+function n(v, c) { return (v === null || v === undefined || isNaN(v)) ? "-" : Number(v).toFixed(c); }
+function nivelTxt(q, lv) {
+  if (q && q !== "valid") return ({ no_comm: "sem comunicação", open_circuit: "termopar aberto", few_samples: "poucas amostras", saturated: "saturado", not_found: "sensor ausente" })[q] || q;
+  return ({ normal: "normal", warning: "atenção", critical: "crítico", unknown: "-" })[lv] || "-";
+}
+function cartao(id, lv) { $(id).className = "card l-" + (lv || "unknown"); }
+function pushH(k, v) { hist[k].push(v); if (hist[k].length > 60) hist[k].shift(); }
+
+function grafico(id, arr, cor) {
+  var c = $(id), w = c.clientWidth, h = c.clientHeight, dpr = window.devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  var g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  var v = arr.filter(function (x) { return x !== null; });
+  if (v.length < 2) return;
+  var lo = Math.min.apply(0, v), hi = Math.max.apply(0, v);
+  if (hi - lo < 0.01) { hi += 0.5; lo -= 0.5; }
+  var css = getComputedStyle(document.documentElement);
+  g.strokeStyle = css.getPropertyValue(cor).trim(); g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+  var ini = false, last = null;
+  arr.forEach(function (x, k) {
+    if (x === null) { ini = false; return; }
+    var X = k / Math.max(arr.length - 1, 1) * (w - 6) + 3, Y = h - 4 - (x - lo) / (hi - lo) * (h - 8);
+    if (ini) g.lineTo(X, Y); else g.moveTo(X, Y);
+    ini = true; last = [X, Y];
+  });
+  g.stroke();
+  if (last) { g.fillStyle = g.strokeStyle; g.beginPath(); g.arc(last[0], last[1], 3, 0, 6.283); g.fill(); }
+}
+
+var FATOR_I = 2, VIB_CRIT = 6;
+function escalar(v) { return (typeof v === "number") ? v * FATOR_I : v; }
+function nivelVib(v) { return (typeof v === "number" && !isNaN(v)) ? (v >= VIB_CRIT ? "critical" : "normal") : "unknown"; }
+function ajustar(d) {
+  var x = JSON.parse(JSON.stringify(d));
+  if (x.corrente) {
+    ["current_rms_a", "raw_rms_a", "max", "potencia_aparente_estimada_va"].forEach(function (k) { x.corrente[k] = escalar(x.corrente[k]); });
+  }
+  if (x.vibracao) {
+    x.vibracao.level = nivelVib(x.vibracao.vel_rms_mms);
+    x.vibracao.level_max = (typeof x.vibracao.max_vel_rms_mms === "number") ? nivelVib(x.vibracao.max_vel_rms_mms) : x.vibracao.level;
+  }
+  return x;
+}
+
+function mostrar(d) {
+  var c = d.corrente || {}, t = d.temperatura || {}, m = d.vibracao || {};
+  var cOk = c.quality === "valid", tOk = t.quality === "valid", mOk = m.quality === "valid" && m.vel_rms_mms !== null;
+
+  $("vI").textContent = n(c.current_rms_a, 2); $("mI").textContent = n(c.max, 2); $("pI").textContent = n(c.potencia_aparente_estimada_va, 0);
+  $("qI").textContent = nivelTxt(c.quality, c.level_max || c.level); cartao("cI", cOk ? (c.level_max || c.level) : "unknown");
+  pushH("I", cOk ? c.current_rms_a : null);
+
+  $("vT").textContent = tOk ? n(t.value, 1) : "-"; $("mT").textContent = n(t.max, 1);
+  $("qT").textContent = nivelTxt(t.quality, t.level_max || t.level); cartao("cT", tOk ? (t.level_max || t.level) : "unknown");
+  pushH("T", tOk ? t.value : null);
+
+  $("vV").textContent = n(m.vel_rms_mms, 2); $("mV").textContent = n(m.max_vel_rms_mms, 2); $("aV").textContent = n(m.accel_rms_g, 3);
+  $("ax").textContent = n(m.x_rms_g, 3); $("ay").textContent = n(m.y_rms_g, 3); $("az").textContent = n(m.z_rms_g, 3);
+  $("qV").textContent = nivelTxt(m.quality, m.level_max || m.level); cartao("cV", mOk ? (m.level_max || m.level) : "unknown");
+  pushH("V", mOk ? m.vel_rms_mms : null);
+
+  grafico("gI", hist.I, "--ac"); grafico("gT", hist.T, "--warn"); grafico("gV", hist.V, "--ok");
+
+  $("mFw").textContent = d.fw || "-";
+  $("mRssi").textContent = d.rssi ? d.rssi + " dBm" : "-";
+  if (d.interval_s) { intervalS = d.interval_s; $("mInt").textContent = d.interval_s + " s"; }
+  lastTs = Date.now();
+  atualizarIdade();
+}
+
+function atualizarIdade() {
+  if (!lastTs) { $("mAge").textContent = "-"; return; }
+  var s = Math.round((Date.now() - lastTs) / 1000);
+  $("mAge").textContent = s < 90 ? "há " + s + " s" : "há " + Math.round(s / 60) + " min";
+  if (devStatus === "online") {
+    var velho = s > intervalS * 2 + 15;
+    pill($("pDev"), velho ? "placa: sem dados recentes" : "placa: online", velho ? "warn" : "ok");
+  }
+}
+setInterval(atualizarIdade, 1000);
+
+function logar(t) { $("log").textContent = t; }
+function pub(obj) {
+  if (!cli || !cli.connected) { logar("Sem conexão com o broker."); return; }
+  cli.publish(base + "/cmd", JSON.stringify(obj), { qos: 1 });
+  logar("Enviado: " + JSON.stringify(obj));
+}
+
+function conectar() {
+  salvar();
+  if (cli) { try { cli.end(true); } catch (e) {} cli = null; }
+  base = $("base").value.trim().replace(/\/+$/, "");
+  var url = $("url").value.trim();
+  if (!base || !url) { logar("Preencha a URL do broker e o tópico base."); return; }
+  pill($("pBroker"), "broker: conectando...", "warn");
+  var opt = { clientId: "painel-" + Math.random().toString(16).slice(2, 10), reconnectPeriod: 3000, connectTimeout: 10000, clean: true };
+  if ($("usr").value) { opt.username = $("usr").value; opt.password = $("pwd").value; }
+  try { cli = mqtt.connect(url, opt); } catch (e) { pill($("pBroker"), "broker: URL inválida", "bad"); return; }
+  cli.on("connect", function () {
+    pill($("pBroker"), "broker: conectado", "ok");
+    cli.subscribe([base + "/status", base + "/hello", base + "/telemetry", base + "/resp"], { qos: 0 });
+  });
+  cli.on("reconnect", function () { pill($("pBroker"), "broker: reconectando...", "warn"); });
+  cli.on("close", function () { pill($("pBroker"), "broker: desconectado", "bad"); });
+  cli.on("error", function (e) { pill($("pBroker"), "broker: erro", "bad"); logar("Erro: " + (e && e.message ? e.message : e)); });
+  cli.on("message", function (topic, payload) {
+    var txt = payload.toString();
+    var fim = topic.slice(base.length + 1);
+    if (fim === "status") {
+      devStatus = txt.trim();
+      if (devStatus === "online") pill($("pDev"), "placa: online", "ok");
+      else pill($("pDev"), "placa: offline", "bad");
+      return;
+    }
+    var d; try { d = JSON.parse(txt); } catch (e) { return; }
+    if (fim === "telemetry" || (fim === "resp" && d.type === "telemetry")) d = ajustar(d);
+    if (fim === "telemetry") { $("raw").textContent = JSON.stringify(d, null, 2); mostrar(d); }
+    else if (fim === "hello") { if (d.fw) $("mFw").textContent = d.fw; if (d.interval_s) { intervalS = d.interval_s; $("mInt").textContent = d.interval_s + " s"; $("iv").value = d.interval_s; } }
+    else if (fim === "resp") {
+      if (d.type === "telemetry") { mostrar(d); logar("Medição atual recebida."); }
+      else logar("Placa respondeu: " + txt.slice(0, 300));
+    }
+  });
+}
+
+$("bCon").onclick = conectar;
+$("bNow").onclick = function () { pub({ cmd: "get_now" }); };
+$("bPing").onclick = function () { pub({ cmd: "ping" }); };
+$("bLim").onclick = function () { pub({ cmd: "get_limits" }); };
+$("bIv").onclick = function () {
+  var s = parseInt($("iv").value, 10);
+  if (!(s >= 1 && s <= 3600)) { logar("Intervalo deve ficar entre 1 e 3600 segundos."); return; }
+  pub({ cmd: "set_interval", seconds: s });
+};
+window.addEventListener("resize", function () { grafico("gI", hist.I, "--ac"); grafico("gT", hist.T, "--warn"); grafico("gV", hist.V, "--ok"); });
+carregar();
+conectar();
+</script>
+</body>
+</html>
