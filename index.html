@@ -174,8 +174,12 @@ function grafico(id, arr, cor) {
   if (last) { g.fillStyle = g.strokeStyle; g.beginPath(); g.arc(last[0], last[1], 3, 0, 6.283); g.fill(); }
 }
 
-var FATOR_I = 2, VIB_CRIT = 6;
+var FATOR_I = 2, VIB_CRIT = 6, VIB_REF_LIDO = 4.40, VIB_REF_REAL = 0.45;
+var FATOR_V = VIB_REF_REAL / VIB_REF_LIDO;
+var CAMPOS_V = ["vel_rms_mms", "max_vel_rms_mms", "vx_rms_mms", "vy_rms_mms", "vz_rms_mms",
+                "accel_rms_g", "x_rms_g", "y_rms_g", "z_rms_g", "peak_g"];
 function escalar(v) { return (typeof v === "number") ? v * FATOR_I : v; }
+function escalarV(v) { return (typeof v === "number") ? v * FATOR_V : v; }
 function nivelVib(v) { return (typeof v === "number" && !isNaN(v)) ? (v >= VIB_CRIT ? "critical" : "normal") : "unknown"; }
 function ajustar(d) {
   var x = JSON.parse(JSON.stringify(d));
@@ -183,6 +187,7 @@ function ajustar(d) {
     ["current_rms_a", "raw_rms_a", "max", "potencia_aparente_estimada_va"].forEach(function (k) { x.corrente[k] = escalar(x.corrente[k]); });
   }
   if (x.vibracao) {
+    CAMPOS_V.forEach(function (k) { x.vibracao[k] = escalarV(x.vibracao[k]); });
     x.vibracao.level = nivelVib(x.vibracao.vel_rms_mms);
     x.vibracao.level_max = (typeof x.vibracao.max_vel_rms_mms === "number") ? nivelVib(x.vibracao.max_vel_rms_mms) : x.vibracao.level;
   }
